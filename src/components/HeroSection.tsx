@@ -1,4 +1,4 @@
-import Image from "next/image";
+/* eslint-disable @next/next/no-img-element */
 
 export default function HeroSection() {
   return (
@@ -66,13 +66,10 @@ export default function HeroSection() {
             <div className="deco-line h1" aria-hidden="true" />
             <div className="deco-dot gold" aria-hidden="true" />
 
-            <Image
+            <img
               className="portrait-img"
-              src="/rana-profile-cutout.png"
+              src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/rana-profile-cutout.png`}
               alt="Rana Lee · 이라나 · AX Instructor"
-              width={580}
-              height={725}
-              priority
             />
 
             <div className="deco-diamond bl" aria-hidden="true" />
