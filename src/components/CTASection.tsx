@@ -22,25 +22,46 @@ export default function CTASection() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting.current) return;
-    const e2 = validate();
-    if (Object.keys(e2).length) { setErrors(e2); return; }
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     submitting.current = true;
     setStatus("loading");
 
     try {
-      const res = await fetch("/api/contact", {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || supabaseUrl === "https://placeholder.supabase.co") {
+        throw new Error("DB가 설정되지 않았습니다. careax.rana@gmail.com으로 직접 이메일 보내주세요.");
+      }
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/contact_submissions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseKey!,
+          "Authorization": `Bearer ${supabaseKey}`,
+          "Prefer": "return=minimal",
+        },
+        body: JSON.stringify({
+          name: form.name.trim().slice(0, 100),
+          phone: form.phone.trim().slice(0, 20),
+          email: form.email.trim().slice(0, 200),
+          message: form.message.trim().slice(0, 2000),
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "오류가 발생했습니다");
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      }
+
       setStatus("ok");
       setForm({ name: "", phone: "", email: "", message: "" });
     } catch (err: unknown) {
       setStatus("err");
-      setErrMsg(err instanceof Error ? err.message : "오류가 발생했습니다");
+      setErrMsg(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally {
       submitting.current = false;
     }
@@ -91,78 +112,54 @@ export default function CTASection() {
             <div className="field">
               <label htmlFor="name">이름 *</label>
               <input
-                id="name"
-                type="text"
-                placeholder="홍길동"
-                value={form.name}
-                maxLength={100}
+                id="name" type="text" placeholder="홍길동"
+                value={form.name} maxLength={100}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-err" : undefined}
               />
-              {errors.name && <span id="name-err" style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.name}</span>}
+              {errors.name && <span style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.name}</span>}
             </div>
             <div className="field">
               <label htmlFor="phone">연락처 *</label>
               <input
-                id="phone"
-                type="tel"
-                placeholder="010-0000-0000"
-                value={form.phone}
-                maxLength={20}
+                id="phone" type="tel" placeholder="010-0000-0000"
+                value={form.phone} maxLength={20}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 aria-invalid={!!errors.phone}
-                aria-describedby={errors.phone ? "phone-err" : undefined}
               />
-              {errors.phone && <span id="phone-err" style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.phone}</span>}
+              {errors.phone && <span style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.phone}</span>}
             </div>
             <div className="field full">
               <label htmlFor="email">이메일 *</label>
               <input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={form.email}
-                maxLength={200}
+                id="email" type="email" placeholder="your@email.com"
+                value={form.email} maxLength={200}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "email-err" : undefined}
               />
-              {errors.email && <span id="email-err" style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.email}</span>}
+              {errors.email && <span style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.email}</span>}
             </div>
             <div className="field full">
               <label htmlFor="message">문의 내용 *</label>
               <textarea
-                id="message"
-                placeholder="강의 문의 내용을 입력해주세요 (강의 목적, 인원, 희망 일정 등)"
-                value={form.message}
-                maxLength={2000}
+                id="message" placeholder="강의 문의 내용을 입력해주세요 (강의 목적, 인원, 희망 일정 등)"
+                value={form.message} maxLength={2000}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
                 aria-invalid={!!errors.message}
-                aria-describedby={errors.message ? "msg-err" : undefined}
               />
-              {errors.message && <span id="msg-err" style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.message}</span>}
+              {errors.message && <span style={{ color: "#f87171", fontSize: 12, marginTop: 4 }}>{errors.message}</span>}
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="form-submit"
-            disabled={status === "loading"}
-            aria-busy={status === "loading"}
-          >
+          <button type="submit" className="form-submit" disabled={status === "loading"}>
             {status === "loading" ? "전송 중..." : "문의 보내기"}
           </button>
 
           {status === "ok" && (
-            <p className="form-msg ok" role="status">
-              ✓ 문의가 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.
-            </p>
+            <p className="form-msg ok" role="status">✓ 문의가 접수되었습니다. 빠른 시일 내에 연락드리겠습니다.</p>
           )}
           {status === "err" && (
-            <p className="form-msg err" role="alert">
-              ✕ {errMsg}
-            </p>
+            <p className="form-msg err" role="alert">✕ {errMsg}</p>
           )}
         </form>
       </div>
